@@ -1,238 +1,333 @@
 import tkinter as tk
-from tkinter import messagebox
-import json
+from tkinter import messagebox, ttk
+import csv
 import os
+import datetime
 
+# File to store books data
+BOOKS_FILE = "books.csv"
 
-class Book:
-    def __init__(self, title, author, isbn):
-        self.title = title
-        self.author = author
-        self.isbn = isbn
-        self.is_borrowed = False
+# File to store transaction data
+TRANSACTIONS_FILE = "transactions.csv"
 
-    def to_dict(self):
-        return {
-            'title': self.title,
-            'author': self.author,
-            'isbn': self.isbn,
-            'is_borrowed': self.is_borrowed
-        }
+# Initialize books data
+def initialize_books():
+    if not os.path.exists(BOOKS_FILE):
+        with open(BOOKS_FILE, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Book ID", "Title", "Author", "Available"])
+            writer.writerow(["1", "Python Programming", "John Doe", "Yes"])
+            writer.writerow(["2", "Data Science Basics", "Jane Smith", "Yes"])
 
-    @staticmethod
-    def from_dict(data):
-        book = Book(data['title'], data['author'], data['isbn'])
-        book.is_borrowed = data['is_borrowed']
-        return book
+# Initialize transactions file
+def initialize_transactions():
+    if not os.path.exists(TRANSACTIONS_FILE):
+        with open(TRANSACTIONS_FILE, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Transaction ID", "Book ID", "User", "Action", "Timestamp"])
 
+initialize_books()
+initialize_transactions()
 
-class User:
-    def __init__(self, username, password, role='user'):
-        self.username = username
-        self.password = password
-        self.role = role
-
-
-class Library:
+class LibrarySystem:
     def __init__(self):
-        self.books = []
-        self.users = {}
-        if os.path.exists("library_data.json"):
-            self.load_data()
+        self.login_window = tk.Tk()
+        self.login_window.title("Library Login")
+        self.create_login_window()
+        self.login_window.mainloop()
 
-    def load_data(self):
-        with open("library_data.json", "r") as file:
-            data = json.load(file)
-            for book_data in data['books']:
-                book = Book.from_dict(book_data)
-                self.books.append(book)
-            for username, user_data in data['users'].items():
-                user = User(username, user_data['password'], user_data['role'])
-                self.users[username] = user
-
-    def save_data(self):
-        data = {
-            'books': [book.to_dict() for book in self.books],
-            'users': {username: {'password': user.password, 'role': user.role} for username, user in self.users.items()}
-        }
-        with open("library_data.json", "w") as file:
-            json.dump(data, file)
-
-    def register_user(self, username, password):
-        if username in self.users:
-            return False
-        self.users[username] = User(username, password)
-        self.save_data()
-        return True
-
-    def login_user(self, username, password):
-        user = self.users.get(username)
-        if user and user.password == password:
-            return user
-        return None
-
-    def add_book(self, book):
-        self.books.append(book)
-        self.save_data()
-
-    def borrow_book(self, isbn):
-        for book in self.books:
-            if book.isbn == isbn and not book.is_borrowed:
-                book.is_borrowed = True
-                self.save_data()
-                return True
-        return False
-
-    def return_book(self, isbn):
-        for book in self.books:
-            if book.isbn == isbn and book.is_borrowed:
-                book.is_borrowed = False
-                self.save_data()
-                return True
-        return False
-
-    def search_books(self, query):
-        results = [book for book in self.books if query.lower() in book.title.lower() or query.lower() in book.author.lower()]
-        return results
-
-
-class LibraryApp:
-    def __init__(self):
-        self.library = Library()
+    def create_login_window(self):
+        tk.Label(self.login_window, text="Library Management System", font=("Arial", 16)).pack(pady=20)
         
-        # Initialize main window
-        self.root = tk.Tk()
-        self.root.title("Library Management System")
+        frame = tk.Frame(self.login_window)
+        frame.pack(pady=10)
         
-        # Create frames for different sections
-        self.login_frame = tk.Frame(self.root)
-        self.register_frame = tk.Frame(self.root)
-        self.user_frame = tk.Frame(self.root)
+        tk.Label(frame, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+        self.username_entry = tk.Entry(frame)
+        self.username_entry.grid(row=0, column=1, padx=5, pady=5)
         
-        # Create login frame components
-        tk.Label(self.login_frame, text="Username").grid(row=0)
-        tk.Label(self.login_frame, text="Password").grid(row=1)
+        tk.Label(frame, text="Password:").grid(row=1, column=0, padx=5, pady=5)
+        self.password_entry = tk.Entry(frame, show='*')
+        self.password_entry.grid(row=1, column=1, padx=5, pady=5)
         
-        self.username_login_entry = tk.Entry(self.login_frame)
-        self.password_login_entry = tk.Entry(self.login_frame, show="*")
+        tk.Button(self.login_window, text="Login", command=self.authenticate).pack(pady=10)
+
+    def authenticate(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
         
-        self.username_login_entry.grid(row=0, column=1)
-        self.password_login_entry.grid(row=1, column=1)
+        if username == "admin" and password == "admin123":
+            self.login_window.destroy()
+            self.admin_home()
+        elif username == "user" and password == "user123":
+            self.login_window.destroy()
+            self.user_home()
+        else:
+            messagebox.showerror("Error", "Invalid credentials")
+
+    def admin_home(self):
+        self.admin_window = tk.Tk()
+        self.admin_window.title("Admin Dashboard")
         
-        tk.Button(self.login_frame, text="Login", command=self.login).grid(row=2, columnspan=2)
+        tk.Label(self.admin_window, text="Admin Dashboard", font=("Arial", 16)).pack(pady=20)
         
-        tk.Button(self.login_frame, text="Register", command=self.show_register_frame).grid(row=3, columnspan=2)
-
+        buttons = [
+            ("Add Book", self.add_book),
+            ("Delete Book", self.delete_book),
+            ("Update Book", self.update_book),
+            ("Check Availability", self.check_availability),
+            ("Logout", lambda: self.logout(self.admin_window))
+        ]
         
-         # Create register frame components
-        tk.Label(self.register_frame, text="Username").grid(row=0)
-        tk.Label(self.register_frame, text="Password").grid(row=1)
+        for text, command in buttons:
+            tk.Button(self.admin_window, text=text, width=20, command=command).pack(pady=5)
 
-        self.username_register_entry = tk.Entry(self.register_frame)
-        self.password_register_entry = tk.Entry(self.register_frame, show="*")
+    def user_home(self):
+        self.user_window = tk.Tk()
+        self.user_window.title("User Dashboard")
+        
+        tk.Label(self.user_window, text="User Dashboard", font=("Arial", 16)).pack(pady=20)
+        
+        buttons = [
+            ("Issue Book", self.issue_book),
+            ("Return Book", self.return_book),
+            ("Check Availability", self.check_availability),
+            ("Logout", lambda: self.logout(self.user_window))
+        ]
+        
+        for text, command in buttons:
+            tk.Button(self.user_window, text=text, width=20, command=command).pack(pady=5)
+    
+    def logout(self, window):
+        window.destroy()
+        self.__init__()
 
-        self.username_register_entry.grid(row=0, column=1)
-        self.password_register_entry.grid(row=1, column=1)
-
-        tk.Button(self.register_frame, text="Register", command=self.register).grid(row=2, columnspan=2)
-
-        tk.Button(self.register_frame, text="Back to Login", command=self.show_login_frame).grid(row=3,columnspan=2)
-
-         
-         # Create user frame components
-        tk.Button(self.user_frame,text="Add Book", command=self.add_book).grid(row=0,columnspan=2)
-        tk.Button(self.user_frame,text="View Books", command=self.view_books).grid(row=1,columnspan=2)
-        tk.Button(self.user_frame,text="Search Books", command=self.search_books).grid(row=2,columnspan=2)
-
-         # Pack frames into the main window
-        for frame in (self.login_frame,self.register_frame,self.user_frame):
-             frame.grid(row=0,column=0)
-
-         # Show login frame initially
-        self.show_login_frame()
-
-     # Show login frame method
-    def show_login_frame(self):
-       # Hide all frames and show login frame only
-       for frame in (self.register_frame,self.user_frame):
-           frame.grid_remove()
-       self.login_frame.grid()
-
-   # Show register frame method
-    def show_register_frame(self):
-       # Hide all frames and show register frame only
-       for frame in (self.login_frame,self.user_frame):
-           frame.grid_remove()
-       self.register_frame.grid()
-
-   # Login method 
-    def login(self):
-       username = self.username_login_entry.get()
-       password = self.password_login_entry.get()
-       user = self.library.login_user(username,password)
-
-       if user:
-           messagebox.showinfo("Login","Login successful!")
-           # Hide login frame and show user frame 
-           for frame in (self.login_frame,self.register_frame):
-               frame.grid_remove()
-           self.user_frame.grid()
-       else:
-           messagebox.showerror("Login","Invalid credentials!")
-
-   # Register method 
-    def register(self):
-       username = self.username_register_entry.get()
-       password = self.password_register_entry.get()
-
-       if not username or not password:
-           messagebox.showerror("Registration","Please fill all fields!")
-           return
-
-       if not library.register_user(username,password):
-           messagebox.showerror("Registration","Username already exists!")
-       else:
-           messagebox.showinfo("Registration","Registration successful!")
-           # Show login frame after registration 
-           self.show_login_frame()
-
-   # Add Book method 
     def add_book(self):
-       title = input("Enter Book Title: ")
-       author = input("Enter Author Name: ")
-       isbn = input("Enter ISBN Number: ")
+        add_window = tk.Toplevel(self.admin_window)
+        add_window.title("Add New Book")
+        
+        fields = ["Book ID:", "Title:", "Author:"]
+        entries = []
+        
+        for i, field in enumerate(fields):
+            tk.Label(add_window, text=field).grid(row=i, column=0, padx=5, pady=5)
+            entry = tk.Entry(add_window)
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            entries.append(entry)
+        
+        def save_book():
+            data = [entry.get() for entry in entries]
+            if all(data):
+                with open(BOOKS_FILE, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow([*data, "Yes"])
+                messagebox.showinfo("Success", "Book added successfully!")
+                add_window.destroy()
+            else:
+                messagebox.showerror("Error", "All fields are required")
+        
+        tk.Button(add_window, text="Save", command=save_book).grid(row=len(fields), columnspan=2, pady=10)
 
-       new_book = Book(title, author,isbn)
-       library.add_book(new_book)
+    def delete_book(self):
+        del_window = tk.Toplevel(self.admin_window)
+        del_window.title("Delete Book")
+        
+        tk.Label(del_window, text="Enter Book ID to delete:").pack(pady=10)
+        book_id_entry = tk.Entry(del_window)
+        book_id_entry.pack(pady=5)
+        
+        def confirm_delete():
+            book_id = book_id_entry.get()
+            books = []
+            deleted = False
+            
+            with open(BOOKS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if row[0] != book_id:
+                        books.append(row)
+                    else:
+                        deleted = True
+            
+            if deleted:
+                with open(BOOKS_FILE, 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(books)
+                messagebox.showinfo("Success", "Book deleted successfully!")
+                del_window.destroy()
+            else:
+                messagebox.showerror("Error", "Book ID not found")
+        
+        tk.Button(del_window, text="Delete", command=confirm_delete).pack(pady=10)
 
-   # View Books method 
-    def view_books(self):
-       books_list = "\n".join([f"{book.title} by {book.author} (ISBN: {book.isbn})" for book in library.books])
-       
-       if not books_list:
-           books_list ="No books available."
-       
-       messagebox.showinfo("Books Available",books_list)
+    def update_book(self):
+        update_window = tk.Toplevel(self.admin_window)
+        update_window.title("Update Book Details")
+        
+        tk.Label(update_window, text="Book ID:").pack(pady=5)
+        book_id_entry = tk.Entry(update_window)
+        book_id_entry.pack(pady=5)
+        
+        def fetch_book():
+            book_id = book_id_entry.get()
+            with open(BOOKS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if row[0] == book_id:
+                        self.show_update_fields(update_window, row)
+                        return
+                messagebox.showerror("Error", "Book not found")
+        
+        tk.Button(update_window, text="Fetch Book", command=fetch_book).pack(pady=10)
 
-   # Search Books method 
-    def search_books(self):
-       query = input("Enter search query (title/author): ")
-       results = library.search_books(query)
+    def show_update_fields(self, window, book_data):
+        fields = ["Title:", "Author:", "Availability (Yes/No):"]
+        entries = []
+        
+        for i, field in enumerate(fields):
+            tk.Label(window, text=field).grid(row=i, column=0, padx=5, pady=5)
+            entry = tk.Entry(window)
+            entry.insert(0, book_data[i+1] if i < 2 else book_data[3])
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            entries.append(entry)
+        
+        def save_changes():
+            new_data = [entry.get() for entry in entries]
+            books = []
+            updated = False
+            
+            with open(BOOKS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if row[0] == book_data[0]:
+                        row[1:4] = new_data
+                        updated = True
+                    books.append(row)
+            
+            if updated:
+                with open(BOOKS_FILE, 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(books)
+                messagebox.showinfo("Success", "Book updated successfully!")
+                window.destroy()
+            else:
+                messagebox.showerror("Error", "Update failed")
+        
+        tk.Button(window, text="Save Changes", command=save_changes).grid(row=len(fields), columnspan=2, pady=10)
 
-       if results:
-           result_list="\n".join([f"{book.title} by {book.author} (ISBN: {book.isbn})" for book in results])
-           messagebox.showinfo("Search Results",result_list)
-       else:
-           messagebox.showinfo("Search Results","No books found.")
+    def issue_book(self):
+        issue_window = tk.Toplevel(self.user_window)
+        issue_window.title("Issue Book")
+        
+        tk.Label(issue_window, text="Enter Book ID:").pack(pady=10)
+        book_id_entry = tk.Entry(issue_window)
+        book_id_entry.pack(pady=5)
+        
+        def process_issue():
+            book_id = book_id_entry.get()
+            books = []
+            issued = False
+            
+            with open(BOOKS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if row[0] == book_id:
+                        if row[3] == "Yes":
+                            row[3] = "No"
+                            issued = True
+                            # Record the transaction
+                            self.record_transaction(book_id, "user", "issue")
+                        else:
+                            messagebox.showerror("Error", "Book not available")
+                    books.append(row)
+            
+            if issued:
+                with open(BOOKS_FILE, 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(books)
+                messagebox.showinfo("Success", "Book issued successfully!")
+                issue_window.destroy()
+            else:
+                messagebox.showerror("Error", "Book issue failed")
+        
+        tk.Button(issue_window, text="Issue", command=process_issue).pack(pady=10)
+
+    def return_book(self):
+        return_window = tk.Toplevel(self.user_window)
+        return_window.title("Return Book")
+        
+        tk.Label(return_window, text="Enter Book ID:").pack(pady=10)
+        book_id_entry = tk.Entry(return_window)
+        book_id_entry.pack(pady=5)
+        
+        def process_return():
+            book_id = book_id_entry.get()
+            books = []
+            returned = False
+            
+            with open(BOOKS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if row[0] == book_id:
+                        if row[3] == "No":
+                            row[3] = "Yes"
+                            returned = True
+                            # Record the transaction
+                            self.record_transaction(book_id, "user", "return")
+                        else:
+                            messagebox.showerror("Error", "Book was not issued")
+                    books.append(row)
+            
+            if returned:
+                with open(BOOKS_FILE, 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(books)
+                messagebox.showinfo("Success", "Book returned successfully!")
+                return_window.destroy()
+            else:
+                messagebox.showerror("Error", "Book return failed")
+        
+        tk.Button(return_window, text="Return", command=process_return).pack(pady=10)
+
+    def check_availability(self):
+        avail_window = tk.Toplevel()
+        avail_window.title("Book Availability")
+        
+        tree = ttk.Treeview(avail_window, columns=("ID", "Title", "Author", "Status"), show="headings")
+        tree.heading("ID", text="Book ID")
+        tree.heading("Title", text="Title")
+        tree.heading("Author", text="Author")
+        tree.heading("Status", text="Availability")
+        
+        with open(BOOKS_FILE, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            for row in reader:
+                tree.insert("", "end", values=row)
+        
+        tree.pack(padx=10, pady=10)
+        tk.Button(avail_window, text="Close", command=avail_window.destroy).pack(pady=10)
+
+    def record_transaction(self, book_id, user, action):
+        transaction_id = self.get_next_transaction_id()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(TRANSACTIONS_FILE, 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([transaction_id, book_id, user, action, timestamp])
+
+    def get_next_transaction_id(self):
+        try:
+            with open(TRANSACTIONS_FILE, 'r') as file:
+                reader = csv.reader(file)
+                transactions = list(reader)
+                if len(transactions) > 1:  # Skip header
+                    last_id = int(transactions[-1][0])
+                    return last_id + 1
+                else:
+                    return 1
+        except FileNotFoundError:
+            return 1
 
 if __name__ == "__main__":
-   app = LibraryApp()
-   app.root.mainloop()
-
-
-# install package through terminal before running code.
-
-# 1. pip install json
-# 2. pip install os
-# 3. pip install tkinter
-# 4. pip install messagebox
+    LibrarySystem()
